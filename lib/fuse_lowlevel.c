@@ -1824,6 +1824,8 @@ out:
 	/* Need to reset the pipe if ->write_buf() didn't consume all data */
 	if ((ibuf->flags & FUSE_BUF_IS_FD) && bufv.idx < bufv.count)
 		fuse_ll_clear_pipe(se);
+
+	fuse_socket_notify_ino("WRITE", -1, nodeid);
 }
 
 static void _do_flush(fuse_req_t req, const fuse_ino_t nodeid,
@@ -1937,18 +1939,9 @@ static void _do_readdir(fuse_req_t req, const fuse_ino_t nodeid,
 
 	memset(&fi, 0, sizeof(fi));
 	fi.fh = arg->fh;
-
-	int add_sock = (nodeid == FUSE_ROOT_ID && socket_file->name[0]);
-	
-	if (add_sock) {
-	  // if last was socket return
-	}
 	
 	if (req->se->op.readdir) {
 		req->se->op.readdir(req, nodeid, arg->size, arg->offset, &fi);
-		if (add_sock) {
-		  // if finished add socket
-		}
 	} else {
 		fuse_reply_err(req, ENOSYS);
 	}

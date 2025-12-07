@@ -1,4 +1,5 @@
 #include "fuse_kernel.h"
+#include "fuse_lowlevel.h"
 #include "fuse_socket.h"
 #include "fuse_log.h"
 #include <stdio.h>
@@ -77,9 +78,14 @@ int fuse_socket_init(void) {
 
     socklen_t addrlen = sizeof(addr);
     getsockname(server_fd, (struct sockaddr*)&addr, &addrlen);
+    const char *name = inet_ntoa(addr.sin_addr);
+
+    if (strcmp(name, "0.0.0.0") == 0) {
+      name = hostname;   // use hostname instead
+    }
 
     snprintf(socket_file_content, sizeof(socket_file_content), "%s:%d",
-             inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
+             name, ntohs(addr.sin_port));
 
     pthread_t tid;
     pthread_create(&tid, NULL, accept_clients, NULL);
@@ -97,6 +103,15 @@ void fuse_socket_notify(const char *change, pid_t pid, const char *path) {
         send(clients[i], msg, len, 0);
     }
     pthread_mutex_unlock(&clients_mutex);
+}
+
+void fuse_socket_notify_ino(const char *change, pid_t pid,const fuse_ino_t nodeid) {
+    char ino[32];
+    sprintf(ino,"%ld",nodeid);
+    if (pid < 0) {
+      pid = getpid();
+    }
+    fuse_socket_notify(change, pid, ino);
 }
 
 void fuse_socket_cleanup(void) {
