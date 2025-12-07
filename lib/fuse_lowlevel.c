@@ -16,6 +16,7 @@
 #include "fuse_kernel.h"
 #include "fuse_opt.h"
 #include "fuse_misc.h"
+#include "fuse_socket.h"
 #include "mount_util.h"
 #include "util.h"
 #include "fuse_uring_i.h"
@@ -1937,10 +1938,20 @@ static void _do_readdir(fuse_req_t req, const fuse_ino_t nodeid,
 	memset(&fi, 0, sizeof(fi));
 	fi.fh = arg->fh;
 
-	if (req->se->op.readdir)
+	int add_sock = (nodeid == FUSE_ROOT_ID && socket_file->name[0]);
+	
+	if (add_sock) {
+	  // if last was socket return
+	}
+	
+	if (req->se->op.readdir) {
 		req->se->op.readdir(req, nodeid, arg->size, arg->offset, &fi);
-	else
+		if (add_sock) {
+		  // if finished add socket
+		}
+	} else {
 		fuse_reply_err(req, ENOSYS);
+	}
 }
 
 static void do_readdir(fuse_req_t req, const fuse_ino_t nodeid,

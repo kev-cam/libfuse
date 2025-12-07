@@ -15,6 +15,8 @@
 #include "fuse_misc.h"
 #include "fuse_opt.h"
 #include "fuse_lowlevel.h"
+#include "fuse_kernel.h"
+#include "fuse_socket.h"
 #include "mount_util.h"
 
 #include <stdio.h>
@@ -252,6 +254,11 @@ int fuse_parse_cmdline_30(struct fuse_args *args,
 
 int fuse_daemonize(int foreground)
 {
+  	int sckt_mode = fuse_socket_init();
+	if (sckt_mode & 2) {
+	  fuse_report_socket(sckt_mode);
+	}
+
 	if (!foreground) {
 		int nullfd;
 		int waiter[2];
