@@ -84,7 +84,8 @@ int main(int argc, const char **argv)
 	char op[16];
 	buf[n] = 0;
 	printf("Received: %s", buf);
-	if (2 == sscanf(buf,"WRITE:%d:%d",&pid,&inode)) {
+	if ((2 == sscanf(buf,"WRITE:%d:%d",&pid,&inode)) ||
+	    (2 == sscanf(buf,"RENAME:%d:%d",&pid,&inode))) {
 	  sprintf(buf,"PATH:%d\n",inode);
 	  printf("Sent: %s", buf);
 	  write(fd,buf,strlen(buf));

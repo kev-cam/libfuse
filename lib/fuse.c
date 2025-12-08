@@ -862,6 +862,7 @@ static void delete_node(struct fuse *f, struct node *node)
 	if (lru_enabled(f))
 		remove_node_lru(node);
 	unhash_id(f, node);
+	fuse_socket_notify_ino("DELETE", -1,node->nodeid);
 	free_node(f, node);
 }
 
@@ -1485,6 +1486,8 @@ static int rename_node(struct fuse *f, fuse_ino_t olddir, const char *oldname,
 		goto out;
 	}
 
+	fuse_socket_notify_ino("RENAME", -1,node->nodeid);
+	
 	if (hide)
 		node->is_hidden = 1;
 
