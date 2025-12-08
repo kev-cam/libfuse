@@ -1,6 +1,7 @@
 #include "fuse_kernel.h"
 #include "fuse_lowlevel.h"
 #include "fuse_socket.h"
+#include "fuse.h"
 #include "fuse_log.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -26,6 +27,31 @@ static pthread_mutex_t clients_mutex = PTHREAD_MUTEX_INITIALIZER;
 static char socket_file_content[BUFFER_SIZE];
 struct fuse_dirent socket_file[11];
 
+static int fuse_socket_command(int fd, char *command) {
+  fuse_log(FUSE_LOG_INFO,"%d command is %s\n",fd,command);
+  int ino;
+  if (1 == sscanf(command,"PATH:%d",&ino)) {
+    char path[1024];
+    sprintf(path,"INO:%d:",ino);
+    int l = strlen(path);
+    get_node_path(NULL, ino, path+l,sizeof(path)-l);
+    l = strlen(path);
+    path[l++] = '\n';
+    write(fd,path,l);
+  }
+}
+
+static int client_handler(void *client) {
+  int sock = (int)client;
+  int size;
+  char msg[BUFFER_SIZE];
+  while((size = read(sock,msg,sizeof(msg))) > 0) {
+    msg[size] = 0;
+    fuse_socket_command(sock,msg);
+    strcpy(msg,"None");
+  }
+}
+
 static void *accept_clients(void *arg) {
     while (1) {
         struct sockaddr_in client_addr;
@@ -33,9 +59,17 @@ static void *accept_clients(void *arg) {
         int client = accept(server_fd, (struct sockaddr*)&client_addr, &addrlen);
         if (client < 0) continue;
 
+	char intro[32+strlen(fuse_mountpoint)];
+	sprintf(intro,"ROOT:%s\n",fuse_mountpoint);
+	send(client, intro, strlen(intro), 0);
+	
         pthread_mutex_lock(&clients_mutex);
         if (client_count < MAX_CLIENTS) {
             clients[client_count++] = client;
+
+	    pthread_t tid;
+	    pthread_create(&tid, NULL, client_handler, (void *)client);
+	    pthread_detach(tid);
         } else {
             close(client);
         }
@@ -127,14 +161,6 @@ void fuse_socket_cleanup(void) {
 
 int fuse_socket_isfile(const char *name) {
     return strcmp(name, socket_file->name) == 0;
-}
-
-int fuse_socket_read(char *buf, size_t size, off_t offset) {
-    size_t len = strlen(socket_file_content);
-    if (offset >= len) return 0;
-    if (offset + size > len) size = len - offset;
-    memcpy(buf, socket_file_content + offset, size);
-    return size;
 }
 
 const char *fuse_socket_getname(void) {

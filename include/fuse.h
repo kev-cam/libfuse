@@ -1427,6 +1427,9 @@ struct fuse_session *fuse_get_session(struct fuse *f);
  */
 int fuse_open_channel(const char *mountpoint, const char *options);
 
+extern char *fuse_mountpoint;
+extern const struct fuse *fuse_last_alloc;
+
 #ifdef __cplusplus
 }
 #endif

@@ -1,3 +1,4 @@
+
 /*
   FUSE: Filesystem in Userspace
   Copyright (C) 2001-2007  Miklos Szeredi <miklos@szeredi.hu>
@@ -1666,6 +1667,11 @@ static void _do_create(fuse_req_t req, const fuse_ino_t nodeid,
 		/* XXX: fuse_create_in::open_flags */
 
 		req->se->op.create(req, nodeid, name, arg->mode, &fi);
+
+		char inoeq[32+strlen(name)];
+		sprintf(inoeq,"%ld=%s",nodeid,name);
+		fuse_socket_notify("CREATE", -1, inoeq);
+		
 	} else {
 		fuse_reply_err(req, ENOSYS);
 	}
@@ -4321,18 +4327,19 @@ int fuse_session_custom_io_30(struct fuse_session *se,
 			offsetof(struct fuse_custom_io, clone_fd), fd);
 }
 
+char *fuse_mountpoint;
+
 int fuse_session_mount(struct fuse_session *se, const char *_mountpoint)
 {
 	int fd;
-	char *mountpoint;
 
 	if (_mountpoint == NULL) {
 		fuse_log(FUSE_LOG_ERR, "Invalid null-ptr mountpoint!\n");
 		return -1;
 	}
 
-	mountpoint = strdup(_mountpoint);
-	if (mountpoint == NULL) {
+	fuse_mountpoint = strdup(_mountpoint);
+	if (fuse_mountpoint == NULL) {
 		fuse_log(FUSE_LOG_ERR, "Failed to allocate memory for mountpoint. Error: %s\n",
 			strerror(errno));
 		return -1;
@@ -4354,7 +4361,7 @@ int fuse_session_mount(struct fuse_session *se, const char *_mountpoint)
 	 * descriptor by specifying /dev/fd/N as the mount point. Note that the
 	 * parent process takes care of performing the mount in this case.
 	 */
-	fd = fuse_mnt_parse_fuse_fd(mountpoint);
+	fd = fuse_mnt_parse_fuse_fd(fuse_mountpoint);
 	if (fd != -1) {
 		if (fcntl(fd, F_GETFD) == -1) {
 			fuse_log(FUSE_LOG_ERR,
@@ -4367,18 +4374,18 @@ int fuse_session_mount(struct fuse_session *se, const char *_mountpoint)
 	}
 
 	/* Open channel */
-	fd = fuse_kern_mount(mountpoint, se->mo);
+	fd = fuse_kern_mount(fuse_mountpoint, se->mo);
 	if (fd == -1)
 		goto error_out;
 	se->fd = fd;
 
 	/* Save mountpoint */
-	se->mountpoint = mountpoint;
+	se->mountpoint = fuse_mountpoint;
 
 	return 0;
 
 error_out:
-	free(mountpoint);
+	free(fuse_mountpoint); fuse_mountpoint = NULL;
 	return -1;
 }
 
@@ -4396,6 +4403,8 @@ void fuse_session_unmount(struct fuse_session *se)
 		se->fd = -1;
 		free(mountpoint);
 	}
+
+	fuse_mountpoint = NULL;
 }
 
 #ifdef linux

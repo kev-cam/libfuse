@@ -74,18 +74,25 @@ int main(int argc, const char **argv)
 {
     const char *spec = argv[1];  // replace with socket_file_content
     int fd = fuse_socket_client(spec);
-
+    
     if (fd >= 0) {
-        printf("Connected!\n");
-        char buf[256];
-        int n;
-	while ((n = read(fd, buf, sizeof(buf)-1)) > 0) {
-            buf[n] = 0;
-            printf("Received: %s", buf);
-        }
-
-        close(fd);
+      printf("Connected!\n");
+      char buf[256];
+      int n;
+      while ((n = read(fd, buf, sizeof(buf)-1)) > 0) {
+	int pid,inode;
+	char op[16];
+	buf[n] = 0;
+	printf("Received: %s", buf);
+	if (2 == sscanf(buf,"WRITE:%d:%d",&pid,&inode)) {
+	  sprintf(buf,"PATH:%d\n",inode);
+	  printf("Sent: %s", buf);
+	  write(fd,buf,strlen(buf));
+	}
+      }
+      
+      close(fd);
     }
-
+    
     return 0;
 }
