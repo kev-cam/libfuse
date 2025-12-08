@@ -544,6 +544,44 @@ static struct node *get_node(struct fuse *f, fuse_ino_t nodeid)
 	return node;
 }
 
+const struct fuse *fuse_last_alloc;
+static int fuse_dirty;
+
+static char *fill_path(struct node *node,char *buf,int size) {
+        if (node->parent) {
+	        char *end = fill_path(node->parent,buf,size);
+		size -= (end - buf);
+		if (size > 0) {
+		  size--;
+		  *end++ = '/';
+		}
+		buf = end;
+	}
+
+        if (FUSE_ROOT_ID == node->nodeid) {
+	        return buf;
+        }
+
+	return stpncpy(buf,node->name,--size);
+}
+
+int get_node_path(struct fuse *f, fuse_ino_t nodeid, char *buf,int size)
+{
+        if (NULL == f) {
+	  if (fuse_dirty) return 1;
+	  f = fuse_last_alloc;
+        }
+	
+	struct node *node = get_node_nocheck(f, nodeid);
+	if (!node) {
+	  return 2;
+	}
+
+        char *end = fill_path(node,buf,--size);
+
+	return (end - buf) < size ? 0 : 1;
+}
+
 static void curr_time(struct timespec *now);
 static double diff_timespec(const struct timespec *t1,
 			   const struct timespec *t2);
@@ -5101,7 +5139,10 @@ struct fuse *_fuse_new_31(struct fuse_args *args,
 	root->nodeid = FUSE_ROOT_ID;
 	inc_nlookup(root);
 	hash_id(f, root);
-
+	
+	fuse_dirty = (NULL != fuse_last_alloc);
+	fuse_last_alloc = f;
+	
 	return f;
 
 out_free_id_table:
