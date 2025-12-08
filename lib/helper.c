@@ -254,11 +254,6 @@ int fuse_parse_cmdline_30(struct fuse_args *args,
 
 int fuse_daemonize(int foreground)
 {
-  	int sckt_mode = fuse_socket_init();
-	if (sckt_mode & 2) {
-	  fuse_report_socket(sckt_mode);
-	}
-
 	if (!foreground) {
 		int nullfd;
 		int waiter[2];
@@ -278,6 +273,10 @@ int fuse_daemonize(int foreground)
 			perror("fuse_daemonize: fork");
 			return -1;
 		case 0:
+		        int sckt_mode = fuse_socket_init();
+			if (sckt_mode & 2) {
+			  fuse_report_socket(sckt_mode);
+			}
 			break;
 		default:
 			(void) read(waiter[0], &completed, sizeof(completed));
@@ -307,6 +306,10 @@ int fuse_daemonize(int foreground)
 		close(waiter[1]);
 	} else {
 		(void) chdir("/");
+		int sckt_mode = fuse_socket_init();
+		if (sckt_mode & 2) {
+		  fuse_report_socket(sckt_mode);
+		}
 	}
 	return 0;
 }
