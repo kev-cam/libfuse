@@ -1669,7 +1669,7 @@ static void _do_create(fuse_req_t req, const fuse_ino_t nodeid,
 		req->se->op.create(req, nodeid, name, arg->mode, &fi);
 
 		char inoeq[32+strlen(name)];
-		sprintf(inoeq,"%ld=%s",nodeid,name);
+		sprintf(inoeq,"%ld/%s",nodeid,name);
 		fuse_socket_notify("CREATE", -1, inoeq);
 		
 	} else {
